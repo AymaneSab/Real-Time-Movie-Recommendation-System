@@ -1,0 +1,111 @@
+######################################################################################################################################################################################################
+											        Elastic Search
+######################################################################################################################################################################################################
+
+
+
+
+
+######################################################################################################################################################################################################
+											The Elastic Commands 
+######################################################################################################################################################################################################
+
+
+######################################################################
+                          Basic Commands  		             # 
+######################################################################
+
+---> Check Cluster Health:
+
+# curl -XGET 'http://localhost:9200/_cat/health?v'
+
+---> Check Cluster Nodes:
+
+# curl -XGET 'http://localhost:9200/_cat/nodes?v'
+
+---> Create an Index:
+
+# curl -XPUT 'http://localhost:9200/my_index'
+
+---> Index a Document:
+
+# curl -XPOST 'http://localhost:9200/my_index/my_type' -d '{"field1": "value1", "field2": "value2"}'
+
+---> Get Document by ID:
+
+# curl -XGET 'http://localhost:9200/my_index/my_type/1'
+
+---> Search Documents:
+
+# curl -XGET 'http://localhost:9200/my_index/_search?q=field1:value1'
+
+
+######################################################################
+                          Intermmediate Commands  		     # 
+######################################################################
+
+---> Mapping (Define Data Types):
+
+# curl -XPUT 'http://localhost:9200/my_index' -d '{"mappings": {"properties": {"field1": {"type": "text"}, "field2": {"type": "keyword"}}}}'
+
+---> Update Document:
+
+# curl -XPOST 'http://localhost:9200/my_index/my_type/1/_update' -d '{"doc": {"field2": "new_value"}}'
+
+---> Delete Index:
+
+# curl -XDELETE 'http://localhost:9200/film'
+
+
+######################################################################
+                          Advanced Commands  		             # 
+######################################################################
+
+---> Aggregations
+
+# curl -XGET 'http://localhost:9200/my_index/_search' -d '{"aggs": {"avg_field2": {"avg": {"field": "field2"}}}}'
+
+---> Bulk Indexing:
+
+# curl -XPUT 'http://localhost:9200/_snapshot/my_backup/snapshot_1' -d '{"indices": "my_index", "ignore_unavailable": true, "include_global_state": false}'
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
