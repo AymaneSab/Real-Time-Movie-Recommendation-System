@@ -30,11 +30,11 @@
 
 # sudo mkdir kibana
 
-# sudo wget https://artifacts.elastic.co/downloads/kibana/kibana-7.17.14-amd64.deb
+# sudo wget https://artifacts.elastic.co/downloads/kibana/kibana-7.14.2-amd64.deb
 
-# sudo shasum -a 512 kibana-7.17.14-amd64.deb
+# sudo shasum -a 512 kibana-7.14.2-amd64.deb
 
-# sudo sudo dpkg -i kibana-7.17.14-amd64.deb
+# sudo sudo dpkg -i kibana-7.14.2-amd64.deb
 
 
 
