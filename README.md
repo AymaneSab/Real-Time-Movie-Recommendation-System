@@ -1,5 +1,5 @@
 # Real-Time Movie Recommendation System
-
+![Alt text](https://149695847.v2.pressablecdn.com/wp-content/uploads/2020/08/stars-movies-1200x670-1.jpg)
 ## Project Overview
 
 As a Data Developer, your role is to build a real-time movie recommendation system, covering the entire data pipeline from collecting data from movielens.org API to presenting recommendations to users. The key steps include:
