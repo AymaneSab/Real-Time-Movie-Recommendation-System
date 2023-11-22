@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movie Recommendation</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+
+        #container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-evenly;
+            align-items: flex-start;
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        .movie-card {
+            margin: 10px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            background-color: #fff;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            text-align: left;
+            max-width: calc(25% - 20px); /* Adjust the width as needed */
+            box-sizing: border-box;
+        }
+
+        .movie-card img {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .movie-details {
+            margin-top: 10px;
+        }
+
+        /* Autocomplete styles */
+        datalist {
+            display: none;
+        }
+
+        /* Add the following styles for responsive design */
+        @media screen and (max-width: 768px) {
+            .movie-card {
+                max-width: calc(50% - 20px); /* Adjust the width for smaller screens */
+            }
+        }
+
+        @media screen and (max-width: 480px) {
+            .movie-card {
+                max-width: 100%; /* Full width for smaller screens */
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Movie Recommendation</h1>
+    <form id="recommendForm">
+        <label for="filmName">Enter Film Name:</label>
+        <input type="text" id="filmName" name="filmName" autocomplete="on" list="filmSuggestions">
+        <datalist id="filmSuggestions"></datalist>
+        <button type="button" onclick="getRecommendations()">Search</button>
+    </form>
+    <div id="container"></div>
+
+    <script>
+        function getRecommendations() {
+            var filmNameInput = document.getElementById('filmName');
+            var filmName = filmNameInput.value.trim();
+
+            // Clear previous recommendations and messages
+            var containerDiv = document.getElementById('container');
+            containerDiv.innerHTML = '';
+
+            // If film name is empty, show info message
+            if (filmName === '') {
+                containerDiv.innerHTML = '<p>Please enter a film name.</p>';
+                return;
+            }
+
+            fetch('/recommend', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    'film_name': filmName
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Show info message if film not found
+                if (data.info) {
+                    containerDiv.innerHTML = '<p>' + data.info + '</p>';
+                } else if (data.recommendations) {
+                    // Display recommendations as cards
+                    data.recommendations.forEach(movie => {
+                        var cardDiv = document.createElement('div');
+                        cardDiv.className = 'movie-card';
+
+                        cardDiv.innerHTML = `
+                            <img src="${movie.backdrop_path}" alt="${movie.title}"/>
+                            <div class="movie-details">
+                                <h3>${movie.title}</h3>
+                                <p>Language: ${movie.original_language}</p>
+                                <p>${movie.overview}</p>
+                            </div>`;
+
+                        containerDiv.appendChild(cardDiv);
+                    });
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+        
+        // Autocomplete functionality
+        var filmNameInput = document.getElementById('filmName');
+        var datalist = document.getElementById('filmSuggestions');
+
+        filmNameInput.addEventListener('input', function() {
+            var inputText = filmNameInput.value.toLowerCase();
+
+            // Fetch film titles from Elasticsearch index for autocomplete
+            fetch('/autocomplete', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    'prefix': inputText
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Clear previous suggestions
+                datalist.innerHTML = '';
+
+                // Display autocomplete suggestions
+                var suggestions = data.suggestions || [];
+                suggestions.forEach(function(suggestion) {
+                    var option = document.createElement('option');
+                    option.value = suggestion;
+                    datalist.appendChild(option);
+                });
+            })
+            .catch(error => console.error('Error:', error));
+        });
+    </script>
+</body>
+</html>
