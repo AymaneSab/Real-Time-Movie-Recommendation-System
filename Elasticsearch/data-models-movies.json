@@ -1,0 +1,25 @@
+{
+    "index": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0
+    },
+    "mappings": {
+      "properties": {
+        "adult": {"type": "boolean"},
+        "backdrop_path": {"type": "text"},
+        "genre_ids": {"type": "integer"},
+        "id": {"type": "integer"},
+        "original_language": {"type": "text"},
+        "original_title": {"type": "text"},
+        "overview": {"type": "text"},
+        "popularity": {"type": "float"},
+        "poster_path": {"type": "text"},
+        "release_date": {"type": "text"},
+        "title": {"type": "text"},
+        "video": {"type": "boolean"},
+        "vote_average": {"type": "float"},
+        "vote_count": {"type": "integer"}
+      }
+    }
+  }
+  

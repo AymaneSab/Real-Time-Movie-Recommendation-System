@@ -1,0 +1,26 @@
+{
+    "index": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0
+    },
+    "mappings": {
+      "properties": {
+        "author": {"type": "text"},
+        "author_details": {
+          "type": "nested",
+          "properties": {
+            "name": {"type": "text"},
+            "username": {"type": "text"},
+            "avatar_path": {"type": "text"},
+            "rating": {"type": "double"}
+          }
+        },
+        "content": {"type": "text"},
+        "created_at": {"type": "text"},
+        "id": {"type": "text"},
+        "updated_at": {"type": "text"},
+        "url": {"type": "text"}
+      }
+    }
+  }
+  
