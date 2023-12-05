@@ -1,108 +1,90 @@
-import requests
-import json
+from flask import Flask, jsonify, request
+import pandas as pd
+import sys
+import time
 import logging
-import os
-from datetime import datetime
+import json
 
+sys.path.append('/home/hadoop/Data-Streaming-and-Analysis-Project/data')
 
-# Function to scrapp the last scrapped page
-def save_last_page(page_number):
-    with open("last_page.txt", "w") as file:
-        file.write(str(page_number))
+app = Flask(__name__)
 
-# Fucntion to get last scrapped page 
-def load_last_page():
+# Configure logging
+logging.basicConfig(filename='app.log', level=logging.INFO)
+
+# Function to read data files
+def read_data_files():
     try:
-        with open("last_page.txt", "r") as file:
-            return int(file.read())
-    except FileNotFoundError:
-        return 1
-
-# Function to setup loggin
-def setup_logging():
-    log_directory = "Log/Producer_Log_Files"
-    os.makedirs(log_directory, exist_ok=True)
-
-    log_filename = datetime.now().strftime("%Y-%m-%d_%H-%M-%S.log")
-    log_filepath = os.path.join(log_directory, log_filename)
-
-    logging.basicConfig(filename=log_filepath, level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-    producer_logger = logging.getLogger(__name__)  
+        u_data = pd.read_csv('/home/hadoop/Data-Streaming-and-Analysis-Project/data/u.data', sep='\t', names=['userId', 'movieId', 'rating', 'timestamp'])
+        u_item = pd.read_csv('/home/hadoop/Data-Streaming-and-Analysis-Project/data/u.item', sep='|', encoding='latin-1', header=None, names=['movieId', 'title', 'release_date', 'video_release_date', 'IMDb_URL', 'unknown', 'Action', 'Adventure', 'Animation', 'Children', 'Comedy', 'Crime', 'Documentary', 'Drama', 'Fantasy', 'Film-Noir', 'Horror', 'Musical', 'Mystery', 'Romance', 'Sci-Fi', 'Thriller', 'War', 'Western'])
+        u_user = pd.read_csv('/home/hadoop/Data-Streaming-and-Analysis-Project/data/u.user', sep='|', names=['userId', 'age', 'gender', 'occupation', 'zipcode'])
+       
+        return u_data, u_item, u_user
     
-    return producer_logger
+    except Exception as e:
+        logging.error(f"Error reading data files: {e}")
+        raise
 
-# Function to discover movies
-def discover_movies(api_key, page , scrapperLogger):
-    base_url = "https://api.themoviedb.org/3/discover/movie"
-    api_url = f"{base_url}?api_key={api_key}&page={page}"
+# Function to extract genres for each movie
+def extract_genres(row):
+    genres = ['unknown', 'Action', 'Adventure', 'Animation', 'Children', 'Comedy', 'Crime', 'Documentary', 'Drama', 'Fantasy', 'Film-Noir', 'Horror', 'Musical', 'Mystery', 'Romance', 'Sci-Fi', 'Thriller', 'War', 'Western']
+    movie_genres = [genre for genre, val in zip(genres, row[5:]) if val == 1]
+    return movie_genres
 
-    try:
-        response = requests.get(api_url)
-        response.raise_for_status()  # Check for errors
-        movie_data = response.json()
-        return movie_data
+# Function to create JSON entry
+def create_json_entry(row):
+    movie_data = {
+        'movieId': str(row['movieId']),
+        'title': row['title'],
+        'release_date': row['release_date'],
+        'video_release_date': row['video_release_date'],
+        'IMDb_URL': row['IMDb_URL']
+    }
+
+    review_data = {
+        'userId': str(row['userId']),
+        'movieId': str(row['movieId']),
+        'rating': str(row['rating']),
+        'timestamp': str(row['timestamp'])
+    }
+
+    user_data = {
+        'userId': str(row['userId']),
+        'age': str(row['age']),
+        'gender': row['gender'],
+        'occupation': row['occupation'],
+        'zipcode': row['zipcode']
+    }
+
+    combined_data = {'movie': movie_data, 'review': review_data, 'user': user_data}
+    json_data = json.dumps(combined_data)
     
-    except requests.exceptions.HTTPError as errh:
-        scrapperLogger.error(f"HTTP Error: {errh}")
-    except requests.exceptions.ConnectionError as errc:
-        scrapperLogger.error(f"Error Connecting: {errc}")
-    except requests.exceptions.Timeout as errt:
-        scrapperLogger.error(f"Timeout Error: {errt}")
-    except requests.exceptions.RequestException as err:
-        scrapperLogger.error(f"Request Error: {err}")
+    return json_data
 
-# Function to get scrapped movies reviews 
-def get_movie_reviews(api_key, movie_id , scrapperLogger):
-    base_url = f"https://api.themoviedb.org/3/movie/{movie_id}/reviews"
-    api_url = f"{base_url}?api_key={api_key}"
-
+@app.route('/movie_data', methods=['GET'])
+def get_movie_data():
     try:
-        response = requests.get(api_url)
-        response.raise_for_status()  # Check for errors
-        reviews_data = response.json()
-        return reviews_data
+        u_data, u_item, u_user = read_data_files()
 
-    except requests.exceptions.HTTPError as errh:
-        scrapperLogger.error(f"HTTP Error: {errh}")
-    except requests.exceptions.ConnectionError as errc:
-        scrapperLogger.error(f"Error Connecting: {errc}")
-    except requests.exceptions.Timeout as errt:
-        scrapperLogger.error(f"Timeout Error: {errt}")
-    except requests.exceptions.RequestException as err:
-        scrapperLogger.error(f"Request Error: {err}")
+        # Apply genre extraction function to each row in u_item
+        u_item['genres'] = u_item.apply(extract_genres, axis=1)
 
-# Main scrapping function that yield the comfirmed results immediatly
-def get_movies():
-    api_key = "b94550d27d581fc676beb262af7a97e1"
-    current_page = load_last_page()
+        # Merge relevant data
+        merged_data = pd.merge(u_data, u_item[['movieId', 'title', 'release_date', 'video_release_date', 'IMDb_URL']], on='movieId')
+        merged_data = pd.merge(merged_data, u_user[['userId', 'age', 'gender', 'occupation', 'zipcode']], on='userId')
 
-    scrapperLogger = setup_logging()
+        # Convert to JSON format and return as a streaming response with a delay
+        def generate():
+            for _, row in merged_data.iterrows():
+                json_data = create_json_entry(row)
+                yield json_data + '\n'  # Ensure each JSON object is on a new line
+                time.sleep(2)  # Introduce a delay of 2 seconds between each response
+                logging.info(f"Returned message: {json_data}")
 
-    try:
-        while True:
-            movie_data = discover_movies(api_key, current_page , scrapperLogger)
+        return app.response_class(generate(), content_type='application/json')
+    except Exception as e:
+        logging.error(f"Error processing request: {e}")
+        return jsonify({"error": "Internal Server Error"}), 500
 
-            if 'results' in movie_data:
-                for movie in movie_data['results']:
-                    movie_id = movie['id']
-                    scrapperLogger.info(f"Film Scrapped in page {current_page}, Movie ID: {movie_id}")
-
-                    # Get reviews for the current movie
-                    reviews_data = get_movie_reviews(api_key, movie_id , scrapperLogger)
-                    if 'results' in reviews_data:
-                        scrapperLogger.info(f"Review Scrapped for {movie_id}")
-
-                    # Combine movie_info_dict and reviews_dict into one dictionary
-                    combined_data = {'movie': movie, 'review': reviews_data['results']}
-                    json_data = json.dumps(combined_data)
-                    
-                    yield json_data
-            
-                current_page += 1
-                save_last_page(current_page)
-
-    except KeyboardInterrupt:
-        scrapperLogger.info(f"Script paused. Last scraped page: {current_page}")
-        save_last_page(current_page)
-
+if __name__ == '__main__':
+    app.run(debug=True)
